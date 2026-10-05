@@ -1,0 +1,21 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.NFC" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- Not required so the app still installs on phones without HCE; onboarding checks it. -->
+  <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
+
+  <application>
+    <!-- Started by Android itself when a reader selects our AID, even if the app is closed. -->
+    <service
+      android:name="lk.attendance.hce.AttendanceHceService"
+      android:exported="true"
+      android:permission="android.permission.BIND_NFC_SERVICE">
+      <intent-filter>
+        <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.nfc.cardemulation.host_apdu_service"
+        android:resource="@xml/attendance_apduservice" />
+    </service>
+  </application>
+</manifest>

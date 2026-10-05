@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="attendance_hce_description">Class attendance card</string>
+  <string name="attendance_aid_description">NFC attendance check-in</string>
+</resources>

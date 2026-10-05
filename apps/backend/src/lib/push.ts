@@ -4,8 +4,9 @@ import { env } from "./env";
 
 export interface OutgoingPush {
   token: string;
+  /** For expo-notifications: title/message are rendered natively, body (JSON) is handed to JS. */
   data: Record<string, string>;
-  /** Omit for silent data-only messages. */
+  /** FCM "notification" payload. We send data-only messages instead so the app can ack receipt. */
   notification?: { title: string; body: string };
   channelId?: string;
 }

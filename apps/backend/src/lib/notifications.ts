@@ -60,11 +60,10 @@ export async function notifySession(sessionId: string, kind: SessionKind): Promi
   }[kind];
   const type = kind === "REMINDER_30" ? "SESSION_REMINDER" : kind;
 
-  const pushes: OutgoingPush[] = devices.map((d) => ({
-    token: d.fcmToken!,
-    notification: text,
-    channelId: "reminders",
-    data: {
+  // Data-only + high priority: expo-notifications on the phone renders title/message itself and also
+  // runs the app's background task, which acks receipt time (reminder delay experiment).
+  const pushes: OutgoingPush[] = devices.map((d) => {
+    const payload = {
       type,
       sessionId,
       classId: session.classId,
@@ -73,8 +72,12 @@ export async function notifySession(sessionId: string, kind: SessionKind): Promi
       endsAt: session.endsAt.toISOString(),
       sessionName: session.name,
       className: session.class.name,
-    },
-  }));
+    };
+    return {
+      token: d.fcmToken!,
+      data: { ...payload, title: text.title, message: text.body, channelId: "reminders", body: JSON.stringify(payload) },
+    };
+  });
   const results = await sendPushes(pushes);
   const sentAt = new Date();
   await Promise.all(
@@ -92,7 +95,8 @@ export async function notifySession(sessionId: string, kind: SessionKind): Promi
 async function notifyDevice(deviceId: string, data: Record<string, string>) {
   const device = await prisma.studentDevice.findUnique({ where: { id: deviceId }, select: { fcmToken: true } });
   if (!device?.fcmToken) return;
-  const [r] = await sendPushes([{ token: device.fcmToken, data }]);
+  // Silent (no title/message): expo-notifications passes it to JS only, as data.body.
+  const [r] = await sendPushes([{ token: device.fcmToken, data: { ...data, body: JSON.stringify(data) } }]);
   if (r?.invalidToken) await clearInvalidTokens([deviceId]);
 }
 

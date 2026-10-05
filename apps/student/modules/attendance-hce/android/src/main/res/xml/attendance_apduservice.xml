@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AID F0 41 54 54 45 4E 44 = proprietary "F0" + ASCII "ATTEND" (docs/IDENTITY_AND_AUTH.md §3).
+  requireDeviceUnlock=false lets a locked (screen on) phone check in; flip it to compare in the experiment.
+-->
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+  android:description="@string/attendance_hce_description"
+  android:requireDeviceUnlock="false">
+  <aid-group android:category="other" android:description="@string/attendance_aid_description">
+    <aid-filter android:name="F0415454454E44" />
+  </aid-group>
+</host-apdu-service>
