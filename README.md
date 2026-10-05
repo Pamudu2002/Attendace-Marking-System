@@ -74,6 +74,39 @@ cd apps/host && EXPO_PUBLIC_API_URL=http://192.168.1.20:3000 npx expo run:androi
 
 ---
 
+## Deploying
+
+### Backend on Vercel
+
+The Vercel project is **`attendance-backend`**: root directory `apps/backend`, Node 22. Settings live in `apps/backend/vercel.json`.
+
+- **Build:** `pnpm run vercel-build` runs `prisma generate`, then `prisma migrate deploy`, then `next build`.
+- **Environment:** `JWT_SECRET`, `CRON_SECRET`, `EXPORT_HASH_SALT` and `JOBS_DRIVER=inline` are already set on the project.
+- **No worker process:** pushes are sent within the request, and reminders come from `/api/v1/cron/reminders`.
+
+Before the first deploy:
+
+1. **Database:** in the Vercel project go to *Storage* → *Create Database* → **Neon** (free) → connect it to `attendance-backend`. This adds `DATABASE_URL` and `DATABASE_URL_UNPOOLED`; migrations use the unpooled one.
+2. **Git:** give Vercel's GitHub app access to this repo (https://github.com/apps/vercel → *Configure*). Then, in the project, open *Settings* → *Git* and connect `Pamudu2002/Attendace-Marking-System`. Every push to `main` then deploys.
+3. **Push reminders (optional):** add `FIREBASE_SERVICE_ACCOUNT_JSON` to the project.
+
+**Reminders:** Vercel Hobby crons run at most once a day. `.github/workflows/reminders-cron.yml` calls the reminder endpoint every 5 minutes instead. It needs:
+
+- the repository **variable** `API_URL` (e.g. `https://attendance-backend.vercel.app`);
+- the **secret** `CRON_SECRET`, with the same value as on Vercel.
+
+Both are set under GitHub → *Settings* → *Secrets and variables* → *Actions*.
+
+### APKs
+
+`.github/workflows/android-apks.yml` builds release APKs for both apps on GitHub's runners. It runs on every push to `main` that touches the apps, or manually from *Actions* → *Build Android APKs* → *Run workflow*, where you can enter a backend URL. Download `attendance-student-apk` and `attendance-host-apk` from the run's *Artifacts* section, then install them on the phones (allow "install unknown apps").
+
+- The backend URL comes from the `API_URL` repository variable. You can also change it in each app's settings.
+- For push reminders, add the student app's `google-services.json` contents as the secret `GOOGLE_SERVICES_JSON`.
+- APKs are signed with the debug key, which is fine for a class demo but not for the Play Store.
+
+---
+
 ## Tests and checks
 
 ```bash
