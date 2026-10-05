@@ -19,8 +19,21 @@ export const env = {
   get firebaseServiceAccount() {
     return process.env.FIREBASE_SERVICE_ACCOUNT_JSON || null;
   },
-  /** Disable the pg-boss publisher (tests). */
+  /** Disable background jobs entirely (tests). */
   get jobsDisabled() {
     return process.env.JOBS_DISABLED === "1";
+  },
+  /**
+   * "pgboss": long-running worker process (Docker/VM). "inline": serverless (Vercel), where pushes are sent
+   * within the request and reminders come from /api/v1/cron/reminders. Defaults to inline on Vercel.
+   */
+  get jobsDriver(): "pgboss" | "inline" {
+    const v = process.env.JOBS_DRIVER;
+    if (v === "pgboss" || v === "inline") return v;
+    return process.env.VERCEL ? "inline" : "pgboss";
+  },
+  /** Shared secret for the cron endpoint (Vercel Cron / GitHub Actions send "Authorization: Bearer <secret>"). */
+  get cronSecret() {
+    return process.env.CRON_SECRET || null;
   },
 };

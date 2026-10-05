@@ -17,6 +17,7 @@ export default defineConfig({
       JOBS_DISABLED: "1",
       RATE_LIMIT_DISABLED: "1",
       FIREBASE_SERVICE_ACCOUNT_JSON: "",
+      CRON_SECRET: "test-cron-secret",
     },
   },
 });

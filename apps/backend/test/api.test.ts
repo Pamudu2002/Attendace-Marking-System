@@ -35,6 +35,7 @@ import * as studentClasses from "@/app/api/v1/student/classes/route";
 import * as studentClass from "@/app/api/v1/student/classes/[classId]/route";
 import * as studentSessions from "@/app/api/v1/student/sessions/route";
 import * as ack from "@/app/api/v1/student/notifications/[notificationId]/ack/route";
+import * as cronReminders from "@/app/api/v1/cron/reminders/route";
 import { prisma } from "@/lib/db";
 import { notifySession } from "@/lib/notifications";
 import { call, FakePhone, resetDb, uuid } from "./helpers";
@@ -520,6 +521,24 @@ describe("notifications and telemetry", () => {
     ).toBe(204);
     const csv = await call(notificationsCsv.GET, { token: t.accessToken });
     expect(csv.data).toContain("REMINDER_30");
+  });
+
+  it("cron endpoint requires the secret and sends due reminders once", async () => {
+    const t = await newTeacher();
+    const cls = await newClass(t.accessToken);
+    const phone = await newPhone();
+    await enroll(t.accessToken, cls.id, phone, "Cron Test", "CRON01");
+    const s = await studentLogin(phone);
+    await call(studentDevice.PUT, { token: s.accessToken, method: "PUT", body: { fcmToken: "fcm-cron" } });
+    await newSession(t.accessToken, cls.id, new Date(Date.now() + 20 * MIN)); // due
+    await newSession(t.accessToken, cls.id, new Date(Date.now() + 3 * 60 * MIN)); // not yet
+
+    expect((await call(cronReminders.GET)).status).toBe(401);
+    expect((await call(cronReminders.GET, { headers: { authorization: "Bearer wrong" } })).status).toBe(401);
+    const first = await call(cronReminders.GET, { headers: { authorization: "Bearer test-cron-secret" } });
+    expect(first.data).toMatchObject({ ok: true, sent: 1 });
+    const second = await call(cronReminders.GET, { headers: { authorization: "Bearer test-cron-secret" } });
+    expect(second.data.sent).toBe(0);
   });
 
   it("ingests tap telemetry idempotently and exports CSV", async () => {

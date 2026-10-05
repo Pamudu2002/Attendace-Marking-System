@@ -1,0 +1,95 @@
+# Builds installable APKs for both apps on GitHub's runners (they have the Android SDK).
+# Download them from the run page: Actions -> "Build Android APKs" -> Artifacts.
+#
+# Repository settings used (Settings -> Secrets and variables -> Actions):
+#   Variable API_URL                 backend URL baked into the apps, e.g. https://attendance-backend.vercel.app
+#   Secret   GOOGLE_SERVICES_JSON    (optional) contents of google-services.json for package lk.attendance.student,
+#                                    enables FCM push reminders in the student app
+name: Build Android APKs
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "Backend URL baked into the apps (defaults to the API_URL repository variable)"
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - "apps/student/**"
+      - "apps/host/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/android-apks.yml"
+
+jobs:
+  apk:
+    name: ${{ matrix.app }} APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [student, host]
+    env:
+      EXPO_PUBLIC_API_URL: ${{ inputs.api_url || vars.API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter "@attendance/${{ matrix.app }}..."
+
+      - name: Add google-services.json (student app, optional)
+        if: matrix.app == 'student'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > apps/student/google-services.json
+            echo "FCM enabled"
+          else
+            echo "::warning::GOOGLE_SERVICES_JSON secret not set - student app builds without push reminders"
+          fi
+
+      - name: Check backend URL
+        run: |
+          if [ -z "$EXPO_PUBLIC_API_URL" ]; then
+            echo "::warning::No API_URL set; the app defaults to http://10.0.2.2:3000 (change it in the app's settings)."
+          else
+            echo "Backend: $EXPO_PUBLIC_API_URL"
+          fi
+
+      - name: Generate native Android project
+        working-directory: apps/${{ matrix.app }}
+        run: npx expo prebuild --platform android --no-install
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APK
+        working-directory: apps/${{ matrix.app }}/android
+        # arm64 only: every NFC phone from the last several years; keeps the build fast and the APK small.
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+
+      - name: Rename APK
+        run: |
+          mkdir -p dist
+          cp apps/${{ matrix.app }}/android/app/build/outputs/apk/release/app-release.apk \
+             dist/attendance-${{ matrix.app }}-${{ github.sha }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: attendance-${{ matrix.app }}-apk
+          path: dist/*.apk
+          retention-days: 30

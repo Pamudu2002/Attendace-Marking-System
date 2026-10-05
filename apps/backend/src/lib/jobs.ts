@@ -47,7 +47,8 @@ export function getPublisher(): Promise<PgBoss> {
 
 /** (Re)schedules the 30-minute reminder for a session. Safe to call after any create/update/cancel. */
 export async function scheduleSessionReminder(sessionId: string): Promise<void> {
-  if (env.jobsDisabled) return;
+  // Inline mode: reminders are found by the cron sweep (sessions starting within 30 min), nothing to queue.
+  if (env.jobsDisabled || env.jobsDriver === "inline") return;
   const session = await prisma.classSession.findUnique({ where: { id: sessionId } });
   if (!session) return;
   const boss = await getPublisher();
@@ -65,10 +66,16 @@ export async function scheduleSessionReminder(sessionId: string): Promise<void> 
 export async function enqueuePush(job: PushJob): Promise<void> {
   if (env.jobsDisabled) return;
   try {
+    if (env.jobsDriver === "inline") {
+      // Serverless: no worker process, so send now (dynamic import avoids a module cycle).
+      const { handlePushJob } = await import("./notifications");
+      await handlePushJob(job);
+      return;
+    }
     const boss = await getPublisher();
     await boss.send(PUSH_QUEUE, job);
   } catch (e) {
     // Pushes are best-effort; never fail the API request because of them.
-    console.error("[push] enqueue failed", e);
+    console.error("[push] failed", e);
   }
 }
