@@ -1,0 +1,23 @@
+node_modules/
+.turbo/
+.next/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+coverage/
+
+# Expo / React Native
+.expo/
+apps/*/android/
+apps/*/ios/
+*.apk
+*.aab
+google-services.json
+
+# Prisma generated client
+apps/backend/src/generated/
+
+# Analysis
+analysis/.ipynb_checkpoints/
+analysis/data/raw/*.csv

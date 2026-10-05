@@ -1,0 +1,43 @@
+{
+  "name": "@attendance/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0 --port 3000",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0 --port 3000",
+    "worker": "tsx src/worker/index.ts",
+    "typecheck": "prisma generate && tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@attendance/shared": "workspace:*",
+    "@node-rs/argon2": "^2.2.1",
+    "@prisma/adapter-pg": "~7.10.0",
+    "@prisma/client": "~7.10.0",
+    "firebase-admin": "^14.5.0",
+    "jose": "^6.2.12",
+    "next": "^16.3.8",
+    "pg": "^8.16.3",
+    "pg-boss": "^12.36.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.15.5",
+    "@types/react": "^19.2.0",
+    "dotenv": "^17.2.3",
+    "prisma": "~7.10.0",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

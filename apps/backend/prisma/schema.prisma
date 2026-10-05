@@ -1,0 +1,241 @@
+// Data model: docs/PLAN.md §6. Tables/columns are snake_case in Postgres.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DeviceStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  EXCUSED
+}
+
+enum AttendanceSource {
+  NFC
+  MANUAL
+}
+
+enum TapPurpose {
+  ENROLL
+  ATTEND
+}
+
+enum TapOutcome {
+  OK
+  DUPLICATE
+  NOT_ENROLLED
+  UNKNOWN_DEVICE
+  BAD_SIGNATURE
+  OUTSIDE_WINDOW
+  TAG_LOST
+  TIMEOUT
+  PROTOCOL_ERROR
+}
+
+enum SubjectType {
+  TEACHER
+  STUDENT_DEVICE
+}
+
+model Teacher {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  fullName     String     @map("full_name")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  classes      Class[]
+  tapEvents    TapEvent[]
+
+  @@map("teacher")
+}
+
+model RefreshToken {
+  id          String      @id @default(uuid()) @db.Uuid
+  subjectType SubjectType @map("subject_type")
+  subjectId   String      @map("subject_id") @db.Uuid
+  familyId    String      @map("family_id") @db.Uuid
+  tokenHash   String      @unique @map("token_hash")
+  expiresAt   DateTime    @map("expires_at") @db.Timestamptz(3)
+  revokedAt   DateTime?   @map("revoked_at") @db.Timestamptz(3)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([subjectType, subjectId])
+  @@index([familyId])
+  @@map("refresh_token")
+}
+
+model Student {
+  id          String             @id @default(uuid()) @db.Uuid
+  indexNumber String             @unique @map("index_number")
+  fullName    String             @map("full_name")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  devices     StudentDevice[]
+  enrollments Enrollment[]
+  attendance  AttendanceRecord[]
+
+  @@map("student")
+}
+
+model StudentDevice {
+  id             String            @id @default(uuid()) @db.Uuid
+  studentId      String?           @map("student_id") @db.Uuid
+  student        Student?          @relation(fields: [studentId], references: [id])
+  publicKey      Bytes             @map("public_key")
+  keyAlgorithm   String            @default("ES256") @map("key_algorithm")
+  hardwareBacked Boolean           @default(false) @map("hardware_backed")
+  status         DeviceStatus      @default(ACTIVE)
+  fcmToken       String?           @map("fcm_token")
+  manufacturer   String?
+  model          String?
+  androidVersion String?           @map("android_version")
+  appVersion     String?           @map("app_version")
+  boundAt        DateTime?         @map("bound_at") @db.Timestamptz(3)
+  lastSeenAt     DateTime?         @map("last_seen_at") @db.Timestamptz(3)
+  revokedAt      DateTime?         @map("revoked_at") @db.Timestamptz(3)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  challenges     AuthChallenge[]
+  notifications  NotificationLog[]
+
+  @@index([studentId])
+  @@map("student_device")
+}
+
+model AuthChallenge {
+  id        String        @id @default(uuid()) @db.Uuid
+  deviceId  String        @map("device_id") @db.Uuid
+  device    StudentDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  nonce     Bytes
+  expiresAt DateTime      @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?     @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([deviceId])
+  @@map("auth_challenge")
+}
+
+model Class {
+  id                    String         @id @default(uuid()) @db.Uuid
+  teacherId             String         @map("teacher_id") @db.Uuid
+  teacher               Teacher        @relation(fields: [teacherId], references: [id])
+  name                  String
+  code                  String?
+  thresholdPct          Int            @default(80) @map("threshold_pct")
+  lateAfterMin          Int            @default(15) @map("late_after_min")
+  checkInOpensBeforeMin Int            @default(15) @map("check_in_opens_before_min")
+  archivedAt            DateTime?      @map("archived_at") @db.Timestamptz(3)
+  createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  enrollments           Enrollment[]
+  sessions              ClassSession[]
+
+  @@index([teacherId])
+  @@map("class")
+}
+
+model Enrollment {
+  classId          String    @map("class_id") @db.Uuid
+  studentId        String    @map("student_id") @db.Uuid
+  class            Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student          Student   @relation(fields: [studentId], references: [id])
+  enrolledAt       DateTime  @default(now()) @map("enrolled_at") @db.Timestamptz(3)
+  enrolledDeviceId String?   @map("enrolled_device_id") @db.Uuid
+  removedAt        DateTime? @map("removed_at") @db.Timestamptz(3)
+
+  @@id([classId, studentId])
+  @@index([studentId])
+  @@map("enrollment")
+}
+
+model ClassSession {
+  id            String             @id @default(uuid()) @db.Uuid
+  classId       String             @map("class_id") @db.Uuid
+  class         Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name          String
+  startsAt      DateTime           @map("starts_at") @db.Timestamptz(3)
+  endsAt        DateTime           @map("ends_at") @db.Timestamptz(3)
+  cancelledAt   DateTime?          @map("cancelled_at") @db.Timestamptz(3)
+  reminderJobId String?            @map("reminder_job_id")
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  attendance    AttendanceRecord[]
+  notifications NotificationLog[]
+
+  @@index([classId, startsAt])
+  @@map("class_session")
+}
+
+model AttendanceRecord {
+  id             String           @id @default(uuid()) @db.Uuid
+  clientRecordId String           @unique @map("client_record_id") @db.Uuid
+  sessionId      String           @map("session_id") @db.Uuid
+  session        ClassSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId      String           @map("student_id") @db.Uuid
+  student        Student          @relation(fields: [studentId], references: [id])
+  deviceId       String?          @map("device_id") @db.Uuid
+  status         AttendanceStatus
+  source         AttendanceSource @default(NFC)
+  tappedAt       DateTime         @map("tapped_at") @db.Timestamptz(3)
+  receivedAt     DateTime         @default(now()) @map("received_at") @db.Timestamptz(3)
+  hostTime       BigInt?          @map("host_time")
+  nonce          Bytes?
+  signature      Bytes?
+  markedById     String           @map("marked_by_id") @db.Uuid
+  note           String?
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+  @@map("attendance_record")
+}
+
+model TapEvent {
+  id            String     @id @default(uuid()) @db.Uuid
+  clientEventId String     @unique @map("client_event_id") @db.Uuid
+  teacherId     String     @map("teacher_id") @db.Uuid
+  teacher       Teacher    @relation(fields: [teacherId], references: [id])
+  hostModel     String     @map("host_model")
+  purpose       TapPurpose
+  contextId     String?    @map("context_id") @db.Uuid
+  deviceIdHash  String?    @map("device_id_hash")
+  outcome       TapOutcome
+  discoveredAt  DateTime   @map("discovered_at") @db.Timestamptz(3)
+  tSelectMs     Float?     @map("t_select_ms")
+  tAuthMs       Float?     @map("t_auth_ms")
+  tVerifyMs     Float?     @map("t_verify_ms")
+  tTotalMs      Float?     @map("t_total_ms")
+  conditions    Json?
+  errorDetail   String?    @map("error_detail")
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([teacherId, discoveredAt])
+  @@map("tap_event")
+}
+
+model NotificationLog {
+  id           String        @id @default(uuid()) @db.Uuid
+  sessionId    String        @map("session_id") @db.Uuid
+  session      ClassSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  deviceId     String        @map("device_id") @db.Uuid
+  device       StudentDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  kind         String
+  scheduledFor DateTime      @map("scheduled_for") @db.Timestamptz(3)
+  sentAt       DateTime?     @map("sent_at") @db.Timestamptz(3)
+  fcmMessageId String?       @map("fcm_message_id")
+  error        String?
+  receivedAt   DateTime?     @map("received_at") @db.Timestamptz(3)
+  openedAt     DateTime?     @map("opened_at") @db.Timestamptz(3)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([sessionId])
+  @@index([deviceId])
+  @@map("notification_log")
+}
