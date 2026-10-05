@@ -22,7 +22,7 @@ const config: ExpoConfig = {
   },
   plugins: ["expo-router", "expo-secure-store", "expo-sqlite", "expo-sharing", "@react-native-community/datetimepicker"],
   extra: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:3000",
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://attendance-backend-steel.vercel.app",
   },
 };
 

@@ -32,7 +32,7 @@ const config: ExpoConfig = {
   ],
   extra: {
     // Default backend URL; can be changed in the app's Settings tab (e.g. your laptop's LAN IP or a tunnel).
-    apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:3000",
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://attendance-backend-steel.vercel.app",
   },
 };
 

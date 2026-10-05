@@ -78,7 +78,7 @@ cd apps/host && EXPO_PUBLIC_API_URL=http://192.168.1.20:3000 npx expo run:androi
 
 ### Backend on Vercel
 
-The Vercel project is **`attendance-backend`**: root directory `apps/backend`, Node 22. Settings live in `apps/backend/vercel.json`.
+The backend is live at **https://attendance-backend-steel.vercel.app** (Vercel project `attendance-backend`): root directory `apps/backend`, Node 22. Settings live in `apps/backend/vercel.json`.
 
 - **Build:** `pnpm run vercel-build` runs `prisma generate`, then `prisma migrate deploy`, then `next build`.
 - **Environment:** `JWT_SECRET`, `CRON_SECRET`, `EXPORT_HASH_SALT` and `JOBS_DRIVER=inline` are already set on the project.
@@ -92,7 +92,7 @@ Before the first deploy:
 
 **Reminders:** Vercel Hobby crons run at most once a day. `.github/workflows/reminders-cron.yml` calls the reminder endpoint every 5 minutes instead. It needs:
 
-- the repository **variable** `API_URL` (e.g. `https://attendance-backend.vercel.app`);
+- the repository **variable** `API_URL` (`https://attendance-backend-steel.vercel.app`);
 - the **secret** `CRON_SECRET`, with the same value as on Vercel.
 
 Both are set under GitHub → *Settings* → *Secrets and variables* → *Actions*.

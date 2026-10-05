@@ -6,7 +6,7 @@ let cached: string | null = null;
 
 export async function getApiUrl(): Promise<string> {
   if (cached) return cached;
-  cached = (await SecureStore.getItemAsync(KEY)) ?? (Constants.expoConfig?.extra?.apiUrl as string) ?? "http://10.0.2.2:3000";
+  cached = (await SecureStore.getItemAsync(KEY)) || (Constants.expoConfig?.extra?.apiUrl as string) || "https://attendance-backend-steel.vercel.app";
   return cached;
 }
 
