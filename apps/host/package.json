@@ -1,7 +1,7 @@
 {
   "name": "@attendance/host",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "dependencies": {
     "@attendance/shared": "workspace:*",
     "@react-native-community/datetimepicker": "9.1.0",
