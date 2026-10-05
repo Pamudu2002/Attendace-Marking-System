@@ -47,6 +47,9 @@ class EnrollSession(val classId: String, val label: String, val confirmTimeoutMs
  */
 object ReaderEngine {
   private val random = SecureRandom()
+
+  /** Monotonic clock for tap timings; replaceable in JVM unit tests (native-tests/). */
+  @Volatile var nanoTime: () -> Long = { SystemClock.elapsedRealtimeNanos() }
   private val timeFmt = SimpleDateFormat("HH:mm", Locale.US)
 
   fun parseKey(spkiB64url: String): PublicKey =
@@ -66,7 +69,7 @@ object ReaderEngine {
   /** SELECT + AUTH. Fills tSelectMs/tAuthMs into [out]. */
   private fun readProof(t: Transceiver, purpose: Int, contextId: String, t0: Long, out: MutableMap<String, Any?>): Proof {
     val sel = t.transceive(Apdu.select())
-    val t1 = SystemClock.elapsedRealtimeNanos()
+    val t1 = nanoTime()
     out["tSelectMs"] = ms(t0, t1)
     when (val sw = Apdu.sw(sel)) {
       Apdu.SW_OK -> Unit
@@ -84,7 +87,7 @@ object ReaderEngine {
     val hostTime = System.currentTimeMillis()
     val authData = Apdu.authData(contextId, nonce, hostTime)
     val resp = t.transceive(Apdu.auth(purpose, authData))
-    val t2 = SystemClock.elapsedRealtimeNanos()
+    val t2 = nanoTime()
     out["tAuthMs"] = ms(t1, t2)
     val sw = Apdu.sw(resp)
     if (sw != Apdu.SW_OK) throw ProtocolException("AUTH_SW_%04X".format(sw))
@@ -108,7 +111,7 @@ object ReaderEngine {
       is IOException -> { out["outcome"] = "TIMEOUT"; out["errorDetail"] = e.message ?: "I/O error" }
       else -> { out["outcome"] = "PROTOCOL_ERROR"; out["errorDetail"] = e.javaClass.simpleName + ": " + e.message }
     }
-    out["tTotalMs"] = ms(t0, SystemClock.elapsedRealtimeNanos())
+    out["tTotalMs"] = ms(t0, nanoTime())
   }
 
   private fun baseEvent(purpose: String, contextId: String): MutableMap<String, Any?> = mutableMapOf(
@@ -132,13 +135,13 @@ object ReaderEngine {
         out["studentId"] = student.studentId
         out["fullName"] = student.fullName
         out["indexNumber"] = student.indexNumber
-        val tv0 = SystemClock.elapsedRealtimeNanos()
+        val tv0 = nanoTime()
         val valid = Signature.getInstance("SHA256withECDSA").run {
           initVerify(student.publicKey)
           update(Apdu.proofMessage(Apdu.PURPOSE_ATTEND, proof.authData, proof.deviceIdBytes))
           try { verify(proof.signature) } catch (_: Exception) { false }
         }
-        out["tVerifyMs"] = ms(tv0, SystemClock.elapsedRealtimeNanos())
+        out["tVerifyMs"] = ms(tv0, nanoTime())
         val now = proof.hostTime
         val opens = s.startsAt - s.opensBeforeMin * 60_000L
         when {
@@ -156,7 +159,7 @@ object ReaderEngine {
           }
         }
       }
-      val tVerdict = SystemClock.elapsedRealtimeNanos()
+      val tVerdict = nanoTime()
       out["tTotalMs"] = ms(t0, tVerdict)
       out["resultCode"] = code
       sendConfirm(t, code, confirmText(code, s.label, proof.hostTime), out, tVerdict)
@@ -172,7 +175,7 @@ object ReaderEngine {
     try {
       readProof(t, Apdu.PURPOSE_ENROLL, s.classId, t0, out)
       out["outcome"] = "PENDING"
-      out["tTotalMs"] = ms(t0, SystemClock.elapsedRealtimeNanos())
+      out["tTotalMs"] = ms(t0, nanoTime())
     } catch (e: Exception) {
       failure(e, out, t0)
     }
@@ -182,7 +185,7 @@ object ReaderEngine {
   fun sendConfirm(t: Transceiver, code: Int, text: String, out: MutableMap<String, Any?>, from: Long) {
     try {
       t.transceive(Apdu.confirm(code, text))
-      out["tConfirmMs"] = ms(from, SystemClock.elapsedRealtimeNanos())
+      out["tConfirmMs"] = ms(from, nanoTime())
       out["confirmed"] = true
     } catch (e: Exception) {
       // The verdict stands; the student just doesn't get the on-phone notification.

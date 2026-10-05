@@ -6,7 +6,6 @@ import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.IsoDep
 import android.os.Bundle
-import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import expo.modules.kotlin.exception.Exceptions
@@ -154,7 +153,7 @@ class NfcReaderModule : Module() {
 
   /** Runs on an NFC binder thread, so blocking I/O is fine here. */
   private fun onTag(tag: Tag) {
-    val t0 = SystemClock.elapsedRealtimeNanos()
+    val t0 = ReaderEngine.nanoTime()
     val isoDep = IsoDep.get(tag) ?: return
     try {
       isoDep.connect()
@@ -187,7 +186,7 @@ class NfcReaderModule : Module() {
     try {
       if (wait.latch.await(session.confirmTimeoutMs.toLong(), TimeUnit.MILLISECONDS)) {
         val out = mutableMapOf<String, Any?>("tapId" to tapId)
-        ReaderEngine.sendConfirm(t, wait.result, wait.message, out, SystemClock.elapsedRealtimeNanos())
+        ReaderEngine.sendConfirm(t, wait.result, wait.message, out, ReaderEngine.nanoTime())
       }
     } finally {
       pending.remove(tapId)

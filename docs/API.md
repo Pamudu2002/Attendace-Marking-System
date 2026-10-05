@@ -170,12 +170,14 @@ The server re-verifies each signature (ATTEND message, `contextId = sessionId`),
 | PUT | `/student/device` | `{ fcmToken?, appVersion?, androidVersion? }` → `204` (called on launch and on FCM token refresh) |
 | GET | `/student/classes` | `{ items: [{ classId, name, code, teacherName, attendancePct, thresholdPct, nextSession }] }` |
 | GET | `/student/classes/{classId}` | `{ class, attendancePct, maxAchievablePct, sessionsNeededFor80, history: [{ sessionId, name, startsAt, status }] }` |
-| GET | `/student/sessions` | `?from=&to=` → upcoming sessions across all enrolled classes |
+| GET | `/student/sessions` | `?from=&to=` (default now → +30 days) → `{ items: [Session + { className, myStatus }] }` across all enrolled classes |
 | POST | `/student/notifications/{notificationId}/ack` | `{ receivedAt, openedAt? }` → `204` (delivery-delay measurement) |
 
 ## 12. FCM messages sent by the backend
 
-| `data.type` | When | Student app action |
+All messages are **data-only** with Android `priority: "high"`, in the format expo-notifications understands. Visible messages carry `title`, `message` and `channelId: "reminders"`. Expo renders those natively even when the app is killed and also runs the app's background task. Every message carries the payload as a JSON string in `body` (`{ type, sessionId?, classId?, notificationId? }`). Silent messages have no `title`/`message`.
+
+| `body.type` | When | Student app action |
 |---|---|---|
 | `SESSION_REMINDER` | `startsAt − 30 min` | Show notification "CS4473 Lecture 5 starts at 10:00. Tap the lecturer's phone to check in". Ack |
 | `SESSION_CHANGED` | Session time or name edited | Show notification + refetch sessions |

@@ -119,7 +119,9 @@ The service is declared with `android.permission.BIND_NFC_SERVICE` and the `HOST
 
 **Result codes (CONFIRM P1):** `00` present, `01` late, `02` already marked, `03` enrolled OK, `10` not enrolled in this class, `11` outside the time window, `12` bad signature, `13` unknown device (host should refresh the roster).
 
-**Error status words from the student side:** `6D 00` INS not supported, `6A 86` wrong P1, `67 00` wrong length, `69 85` not registered, `6F 00` signing failed.
+**Error status words from the student side:** `6D 00` INS not supported, `6E 00` CLA not supported, `6A 86` wrong P1, `67 00` wrong length, `69 85` not registered, `6F 00` signing failed. If the student app isn't installed at all, Android itself answers SELECT with `6A 82`. The host reports that case as `STUDENT_APP_NOT_INSTALLED`.
+
+The CONFIRM text is built on the host from the verdict and the session label, and truncated to 64 UTF-8 bytes. The student phone also logs each tap with its Keystore signing time (`signMs`), which is useful for the TEE vs StrongBox comparison.
 
 `processCommandApdu` runs on the main thread. If Keystore signing is slow (StrongBox can take tens of ms), the service returns `null` and replies later with `sendResponseApdu()` from a background thread.
 

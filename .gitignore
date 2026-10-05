@@ -20,4 +20,11 @@ apps/backend/src/generated/
 
 # Analysis
 analysis/.ipynb_checkpoints/
-analysis/data/raw/*.csv
+analysis/data/
+analysis/results/
+analysis/.venv/
+
+# Gradle (native-tests)
+native-tests/build/
+native-tests/.gradle/
+native-tests/.kotlin/

@@ -451,8 +451,8 @@ The brief marks the **experiment**, not the app. Proposed framing for the propos
 ## 9. Push reminders (30 minutes before)
 
 1. When a session is created or updated, the API cancels the old job (`reminderJobId`) and enqueues the pg-boss job `session-reminder` with `startAfter = startsAt − 30 min` and `singletonKey = sessionId`. If the start is less than 30 minutes away, the job runs immediately. Cancelling a session cancels the job and sends a "cancelled" push.
-2. The worker loads enrolled students → active devices with an `fcmToken` → `sendEachForMulticast` with Android `priority: "high"` and channel `reminders`, data `{type: "SESSION_REMINDER", sessionId}`. Each send writes a `NotificationLog` row. Invalid tokens are cleared.
-3. The student app shows the notification. A background handler POSTs an **ack** with `receivedAt` (for the delay measurement). Tapping the notification opens the session screen.
+2. The worker loads enrolled students → active devices with an `fcmToken` → `sendEach` with Android `priority: "high"`. Each message is **data-only** in the expo-notifications format: `title`, `message`, `channelId: "reminders"`, plus the payload as JSON in `body` (`{type: "SESSION_REMINDER", sessionId, classId, notificationId, …}`). Expo's FCM service on the phone shows it natively even when the app is killed, and also runs the app's background task. Each send writes a `NotificationLog` row. Invalid tokens are cleared. A sweep every 5 minutes catches sessions that should have had a reminder but didn't (e.g. created while the worker was down).
+3. The student app's background task POSTs an **ack** with `receivedAt` (for the delay measurement). Tapping the notification acks `openedAt` and opens the class screen.
 4. Edge cases: a token refresh calls `PUT /student/device/push-token`; a student enrolled after the job was queued is still covered, because the worker resolves recipients when it runs.
 
 Alternative considered: scheduling local notifications on the student phone. They work offline but go stale when a session changes. Server FCM plus a data refresh is simpler and matches the "push notification" requirement.

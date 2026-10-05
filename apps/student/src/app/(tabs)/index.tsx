@@ -31,19 +31,20 @@ export default function HomeScreen() {
   const [taps, setTaps] = useState<TapEntry[]>(() => Hce.getRecentTaps());
 
   const refreshNfc = useCallback(() => setNfc(Hce.getStatus()), []);
+  const refetchSessions = sessions.refetch;
   useFocusEffect(refreshNfc);
   useEffect(() => {
     // NFC may be switched on in system settings while we're in the background.
     const sub = AppState.addEventListener("change", (s) => s === "active" && refreshNfc());
     const tapSub = Hce.addTapListener(() => {
       setTaps(Hce.getRecentTaps());
-      sessions.refetch();
+      refetchSessions();
     });
     return () => {
       sub.remove();
       tapSub.remove();
     };
-  }, [refreshNfc, sessions]);
+  }, [refreshNfc, refetchSessions]);
 
   const now = Date.now();
   const list = sessions.data ?? [];
